@@ -35,7 +35,7 @@ class Generation:
         self.num_to_keep = num_to_keep
 
     def populate_agents(self, num_agents, template: NeuralNetwork):
-        return [template.rand_copy() for i in range(num_agents)]
+        return [Agent(template.rand_copy()) for _ in range(num_agents)]
     
 
     def next_generation(self):
@@ -45,7 +45,8 @@ class Generation:
         
         while len(next_gen) < self.get_size():
             parent = best[randint(0, self.num_to_keep)]
-            next_gen.append(parent.generate_child(self.mutation_chance, self.mutation_size))
+            new_agent = parent.generate_child(self.mutation_chance, self.mutation_size)
+            next_gen.append(new_agent)
 
         return Generation(agents=next_gen)
 

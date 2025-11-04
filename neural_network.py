@@ -21,7 +21,7 @@ class NeuralNetwork:
 
         self.prevSize = size
 
-    def num_outputs(self, ) -> int:
+    def num_outputs(self) -> int:
         # TODO: get the number of outputs of the final layer
         return 0
     
@@ -29,7 +29,7 @@ class NeuralNetwork:
         # TODO
         return np.zeros(self.num_outputs(), dtype=float16)
 
-    def rand_copy(self,):
+    def rand_copy(self):
         copy = []
         for layer in self.network:
             layerCopy = np.random.rand(layer.shape[0], layer.shape[1])
