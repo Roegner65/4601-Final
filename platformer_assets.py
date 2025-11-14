@@ -24,26 +24,21 @@ class Vector:
         return Vector(self.x / other, self.y / other)
     
     def __mul__(self, scalar):
-        """Scalar multiplication (Vector * 10)."""
         return Vector(self.x * scalar, self.y * scalar)
 
     def __rmul__(self, scalar):
-        """Reverse scalar multiplication (10 * Vector)."""
         return self.__mul__(scalar)
 
     def magnitude(self) -> float:
-        """Returns the length of the vector."""
         return math.sqrt(self.x**2 + self.y**2)
 
     def normalize(self):
-        """Returns a new vector with the same direction and a magnitude of 1."""
         mag = self.magnitude()
         if mag == 0:
             return Vector(0, 0)
         return Vector(self.x / mag, self.y / mag)
     
     def to_tuple(self):
-        """Converts the vector to a tuple (x, y) for Pygame functions."""
         return (self.x, self.y)
     
     def __repr__(self):
@@ -70,7 +65,6 @@ class GameObj:
         return self.pos.y + self.dim.y
     
     def center(self) -> Vector:
-        """Returns the center point of the object as a Vector."""
         return Vector(self.pos.x + self.dim.x / 2, self.pos.y + self.dim.y / 2)
     
     def get_rect(self):
@@ -97,14 +91,8 @@ class Player(GameObj):
         self.is_on_ground = False
 
     def cast_ray(self, origin: Vector, direction: Vector, obstacles):
-        """
-        Casts a single ray from an origin in a direction and finds the
-        closest distance to any obstacle.
-        """
-        # Define the full line segment for the ray (still using floats)
         line_end = origin + direction * MAX_RAY_DISTANCE
         
-        # Create integer tuples for the Pygame clipline function
         point1 = (int(origin.x), int(origin.y))
         point2 = (int(line_end.x), int(line_end.y))
         line = (point1, point2)
@@ -116,15 +104,10 @@ class Player(GameObj):
             hit = obs.get_rect().clipline(line)
             
             if hit:
-                # We have a hit. Get the intersection point.
-                # hit[0] is the (x, y) tuple of the intersection point
-                # We can use the float-based origin for a more accurate distance
                 hit_point = Vector(hit[0][0], hit[0][1])
                 
-                # Calculate the distance from our float origin to the int hit point
                 dist = (hit_point - origin).magnitude()
                 
-                # We want the *closest* hit, so we track the minimum
                 if dist < closest_dist:
                     closest_dist = dist
                     closes_obs = obs
@@ -132,13 +115,8 @@ class Player(GameObj):
         return closest_dist, closes_obs
 
     def get_inputs(self, obstacles: list[GameObj]) -> NDArray[float16]:
-        """
-        Gets the AI's "vision" by casting rays and collecting state.
-        Returns a normalized array of all inputs.
-        """
         origin = self.center()
         
-        # Define 8 directions (N, NE, E, SE, S, SW, W, NW)
         directions = [
             Vector(0, -1),   # North
             Vector(1, -1).normalize(),   # North-East
@@ -150,41 +128,33 @@ class Player(GameObj):
             Vector(-1, -1).normalize()   # North-West
         ]
         
-        # --- Create separate lists for each data type ---
         distance_inputs = []
         type_inputs = []
         
         for direction in directions:
             dist, obj = self.cast_ray(origin, direction, obstacles)
             
-            # 1. Add distance
             distance_inputs.append(dist)
             
-            # 2. Add type
             if obj is not None:
                 if obj.type == 'standard':
                     type_inputs.append(0.0) # Normal platform
                 else:
-                    type_inputs.append(1.0) # e.g., 'danger' platform
+                    type_inputs.append(1.0) # danger platform
             else:
                 type_inputs.append(-1.0) # Empty space
                 
-        # --- Normalize each list correctly ---
         
-        # Normalize distances (0.0 to 1.0)
         norm_distances = np.array(distance_inputs, dtype=float16) / MAX_RAY_DISTANCE
         
-        # Types are already in a good range (-1, 0, 1)
         norm_types = np.array(type_inputs, dtype=float16)
         
-        # Normalize state inputs (-1.0 to 1.0)
-        vel_x = np.clip(self.vel.x / 70, -1, 1) # Use your max speed (70)
-        vel_y = np.clip(self.vel.y / 80, -1, 1) # Use your max jump (80)
+        vel_x = np.clip(self.vel.x / 70, -1, 1) # max speed (70)
+        vel_y = np.clip(self.vel.y / 80, -1, 1) # max jump (80)
         on_ground = 1.0 if self.is_on_ground else 0.0
         
         state_inputs = np.array([vel_x, vel_y, on_ground], dtype=float16)
 
-        # --- Concatenate all inputs into one final array ---
         return np.concatenate((norm_distances, norm_types, state_inputs))
     
     def jump(self, jump_strength):
@@ -199,7 +169,6 @@ class Player(GameObj):
             self.vel.x *= 0.95
             if abs(horizontal) > MOVEMENT_THRESHOLD:
                 self.vel.x += horizontal * 20
-                # Clamp the velocity between -70 and 70
                 self.vel.x = np.clip(self.vel.x, -70, 70)
             if jump > JUMP_THRESHOLD:
                 self.jump(jump)
