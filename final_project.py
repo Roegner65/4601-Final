@@ -12,7 +12,6 @@ pygame.init()
 FIELD_SIZE = (600, 400)
 SCALE = 1
 INFO_PANE_HEIGHT = 15
-FRAME_DELAY = 0.005
 network_display = pygame.Surface((400, 400))
 animation_display = pygame.Surface((FIELD_SIZE[0] * SCALE, FIELD_SIZE[1] * SCALE + INFO_PANE_HEIGHT))
 screen = pygame.display.set_mode((animation_display.get_width() + network_display.get_width(),
@@ -21,7 +20,7 @@ screen = pygame.display.set_mode((animation_display.get_width() + network_displa
 GOAL = (FIELD_SIZE[0] / 2, FIELD_SIZE[1] / 2)
 TESTER_RADIUS = 2.5
 
-template = NeuralNetwork(6)
+template = NeuralNetwork(19)
 template.add_layer(5)
 template.add_layer(5)
 template.add_layer(2)
@@ -40,7 +39,7 @@ def sign(n):
 
 
 def populate_players(generation: Generation):
-    return [Player(Vector(0, 0), Vector(10, 25), agent) for agent in generation.agents]
+    return [Player(Vector(3, 250), Vector(10, 25), agent) for agent in generation.agents]
 
 
 def display_info(round_num, gen_num):
@@ -69,17 +68,26 @@ def update_display(players, platforms, round_num, gen_num):
     screen.blit(network_display, (animation_display.get_width(), 0))
     pygame.display.update()
     for event in pygame.event.get():  
-        if event.type == pygame.QUIT:  
+        if event.type == pygame.QUIT:
+           pygame.quit()
            running = False
-    time.sleep(FRAME_DELAY)
 
 
 
 def run_generation(players: list[Player], obstacles: list[GameObj], round_num, gen_num, num_time_steps=10):
+    RENDER_EVERY_N_STEPS = 50 
+
     for t in range(num_time_steps):
+        if not running:
+             break
+        
         for player in players:
             player.update(obstacles)
-        update_display(players, obstacles, round_num, gen_num)  
+        
+        # Only draw one frame every N steps
+        if t % RENDER_EVERY_N_STEPS == 0:
+            update_display(players, obstacles, round_num, gen_num) 
+        
     for player in players:
         player.brain.score = player.pos.x
 
@@ -87,14 +95,16 @@ def run_generation(players: list[Player], obstacles: list[GameObj], round_num, g
 
 obstacles: list[GameObj] = [Platform(Vector(0, FIELD_SIZE[1] - 50), Vector(FIELD_SIZE[0], 50)),
                             Platform(Vector(-10, 0), Vector(11, FIELD_SIZE[1])),
-                            Platform(Vector(FIELD_SIZE[0] - 1, 0), Vector(11, FIELD_SIZE[1]))]
+                            Platform(Vector(FIELD_SIZE[0] - 1, 0), Vector(11, FIELD_SIZE[1])),
+                            Platform(Vector(200, 200), Vector(50, 300)),
+                            Platform(Vector(120, 270), Vector(50, 100))]
 
 players = populate_players(gen)
 
 running = True
 NUM_ROUNDS = 20
 for gen_num in range(num_gens):
-    run_generation(players, obstacles, 0, gen_num, num_time_steps=1000)
+    run_generation(players, obstacles, 0, gen_num, num_time_steps=5000)
     for player in players:
         player.brain.score /= NUM_ROUNDS
 
