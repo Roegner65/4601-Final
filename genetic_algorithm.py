@@ -6,9 +6,10 @@ import numpy as np
 
 class Agent(NeuralNetwork):
     def __init__(self, network=None):
-        self.score = float('-inf')  # Will be set later, in training
+        self.score = 0#float('-inf')  # Will be set later, in training
         if network != None:
             self.network = network
+            self.num_inputs = len(network[0][0]) - 1
     
     def generate_child(self, mutation_chance, mutation_size) -> NeuralNetwork:
         new_layers = []
@@ -40,15 +41,20 @@ class Generation:
 
     def next_generation(self):
         best = nlargest(self.num_to_keep, self.agents, key=lambda agent: agent.score)
+        print([agent.score for agent in best])
+        print(best[0].network)
+        for agent in best:
+            agent.score = 0
         next_gen = []
         next_gen.extend(best)
         
         while len(next_gen) < self.get_size():
-            parent = best[randint(0, self.num_to_keep)]
+            parent = best[randint(0, self.num_to_keep - 1)]
             new_agent = parent.generate_child(self.mutation_chance, self.mutation_size)
             next_gen.append(new_agent)
 
-        return Generation(agents=next_gen)
+        return Generation(agents=next_gen, size=self.get_size(), num_to_keep=self.num_to_keep,
+                          mutation_chance=self.mutation_chance, mutation_size=self.mutation_size)
 
 
     def get_size(self):
