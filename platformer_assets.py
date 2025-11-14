@@ -6,7 +6,7 @@ from numpy import float16
 
 
 class Vector:
-    def __init__(self, x, y):
+    def __init__(self, x:float, y:float):
         self.x: float = x
         self.y: float = y
 
@@ -73,17 +73,21 @@ class Player(GameObj):
         if self.on_ground(obstacles):
             self.vel.y -= 3
     
-    def update(self, obstacles: list[GameObj]):
+    def update(self, obstacles: list):
         output = self.brain.predict(self.get_inputs(obstacles))
         horizontal = output[0]
         jump = output[1]
 
         if abs(horizontal) > MOVEMENT_THRESHOLD:
             self.pos.x += horizontal
-        if jump > JUMP_THRESHOLD:
-            self.jump(obstacles)
 
         self.vel.y += G / FPS
+
+        for obstical in obstacles:
+            self.vel += obstical.get_norm_force(self)
+
+        if jump > JUMP_THRESHOLD:
+            self.jump(obstacles)
 
         self.pos += self.vel / FPS
     
@@ -101,15 +105,26 @@ class Platform(GameObj):
             self.color = (255, 0, 0)
     
     def get_norm_force(self, player: Player) -> Vector:
-        left_dist = abs(self.left() - player.right())
-        right_dist = abs(self.right() - player.left())
-        top_dist = abs(self.top() - player.bottom())
-        bottom_dist = abs(self.bottom() - player.top())
-        if left_dist < right_dist and left_dist < top_dist and left_dist < bottom_dist:
-            return Vector(-player.vel.x, 0)
-        if right_dist < left_dist and right_dist < top_dist and right_dist < bottom_dist:
-            return Vector(-player.vel.x, 0)
-        if bottom_dist < left_dist and bottom_dist < right_dist and bottom_dist < top_dist:
-            return Vector(0, -player.vel.y)
-        # if top_dist < left_dist and top_dist < right_dist and top_dist < bottom_dist:
-        return Vector(0, -player.vel.y)
+        vel_change = Vector(0, 0)
+        if player.get_rect().colliderect(self.get_rect()):
+            left_dist = abs(self.left() - player.right())
+            right_dist = abs(self.right() - player.left())
+            top_dist = abs(self.top() - player.bottom())
+            bottom_dist = abs(self.bottom() - player.top())
+            # if left_dist < right_dist and left_dist < top_dist and left_dist < bottom_dist:
+            #     return Vector(-abs(player.vel.x), 0)
+            # if right_dist < left_dist and right_dist < top_dist and right_dist < bottom_dist:
+            #     return Vector(abs(player.vel.x), 0)
+            # if bottom_dist < left_dist and bottom_dist < right_dist and bottom_dist < top_dist:
+            #     return Vector(0, abs(player.vel.y))
+            # # if top_dist < left_dist and top_dist < right_dist and top_dist < bottom_dist:
+            # return Vector(0, -abs(player.vel.y))
+            if left_dist < right_dist and left_dist < self.dim.x / 4:
+                vel_change += Vector(-abs(player.vel.x), 0)
+            elif  right_dist < self.dim.x / 4:
+                vel_change += Vector(abs(player.vel.x), 0)
+            if bottom_dist < top_dist and bottom_dist < self.dim.y / 4:
+                vel_change +=  Vector(0, abs(player.vel.y))
+            elif top_dist < self.dim.y / 4:
+                vel_change += Vector(0, -abs(player.vel.y))
+        return vel_change

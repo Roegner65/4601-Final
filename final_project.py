@@ -6,14 +6,14 @@ from heapq import nlargest
 
 from neural_network import NeuralNetwork
 from genetic_algorithm import Generation, Agent
-from platformer_assets import Player, Vector
+from platformer_assets import *
 
 pygame.init()
-FIELD_SIZE = (200, 200)
+FIELD_SIZE = (600, 400)
 SCALE = 1
 INFO_PANE_HEIGHT = 15
 FRAME_DELAY = 0.005
-network_display = pygame.Surface((200*SCALE/10, 200*SCALE/10))
+network_display = pygame.Surface((400, 400))
 animation_display = pygame.Surface((FIELD_SIZE[0] * SCALE, FIELD_SIZE[1] * SCALE + INFO_PANE_HEIGHT))
 screen = pygame.display.set_mode((animation_display.get_width() + network_display.get_width(),
                                   max(animation_display.get_height(), network_display.get_height())))
@@ -38,11 +38,6 @@ num_gens = 1000
 def sign(n):
     return -1 if n < 0 else 1
 
-def update_screen():
-    screen.blit(animation_display, (0, 0))
-    screen.blit(network_display, (animation_display.get_width(), 0))
-    pygame.display.update()
-
 
 def populate_players(generation: Generation):
     return [Player(Vector(0, 0), Vector(10, 25), agent) for agent in generation.agents]
@@ -54,31 +49,52 @@ def display_info(round_num, gen_num):
     animation_display.blit(text_surface, (0, 0))
 
 
-def display_players(players, round_num, gen_num):
-    animation_display.fill((0, 0, 0))
-    display_info(round_num, gen_num)
+def display_players(players):
     for player in players:
         player.draw(animation_display)
-    update_screen()
+
+def display_platforms(platforms):
+    for platform in platforms:
+        platform.draw(animation_display)
+    
+def update_display(players, platforms, round_num, gen_num):
+    global running
+    animation_display.fill((0, 0, 0))
+    
+    display_players(players)
+    display_platforms(platforms)
+    display_info(round_num, gen_num)
+
+    screen.blit(animation_display, (0, 0))
+    screen.blit(network_display, (animation_display.get_width(), 0))
+    pygame.display.update()
+    for event in pygame.event.get():  
+        if event.type == pygame.QUIT:  
+           running = False
     time.sleep(FRAME_DELAY)
 
 
-def run_generation(players: list[Player], round_num, gen_num, num_time_steps=10):
+
+def run_generation(players: list[Player], obstacles: list[GameObj], round_num, gen_num, num_time_steps=10):
     for t in range(num_time_steps):
         for player in players:
-            player.update([])
-        display_players(players, round_num, gen_num)  
+            player.update(obstacles)
+        update_display(players, obstacles, round_num, gen_num)  
     for player in players:
         player.brain.score = player.pos.x
 
 
+
+obstacles: list[GameObj] = [Platform(Vector(0, FIELD_SIZE[1] - 50), Vector(FIELD_SIZE[0], 50)),
+                            Platform(Vector(-10, 0), Vector(11, FIELD_SIZE[1])),
+                            Platform(Vector(FIELD_SIZE[0] - 1, 0), Vector(11, FIELD_SIZE[1]))]
 
 players = populate_players(gen)
 
 running = True
 NUM_ROUNDS = 20
 for gen_num in range(num_gens):
-    run_generation(players, 0, gen_num, num_time_steps=20)
+    run_generation(players, obstacles, 0, gen_num, num_time_steps=1000)
     for player in players:
         player.brain.score /= NUM_ROUNDS
 
@@ -86,7 +102,7 @@ for gen_num in range(num_gens):
     best = nlargest(1, agents, key=lambda agent: agent.score)[0]
     best.display(network_display)
     gen = gen.next_generation()
-    testers = populate_players(gen)
+    players = populate_players(gen)
     print(f'NEW GEN! gen {gen_num}/{num_gens}')
     time.sleep(0.05)
 
