@@ -28,8 +28,8 @@ class NeuralNetwork:
         for layer in self.network[:len(self.network) - 1]:
             next = [1]
             for node_weights in layer:
-                # next.append(max((current * node_weights).sum(), 0))
-                next.append(sigmoid((current * node_weights).sum()))
+                next.append(max((current * node_weights).sum(), 0))
+                # next.append(sigmoid((current * node_weights).sum()))
             current = np.array(next)
         output = []
         for node_weights in self.network[-1]:
@@ -92,8 +92,8 @@ class NeuralNetwork:
                         color = (0, 255 * node[n] / abs(max_weight), 0)
                     else:
                         color = (255 * -node[n] / abs(min_weight), 0, 0) if min_weight != 0 else (255 * -node[n], 0, 0)
-                    pygame.draw.aaline(screen, (255, 255, 255), previous_positions[n - 1], cur_pos, int(2 * scale) + 3)
-                    pygame.draw.aaline(screen, color, previous_positions[n - 1], cur_pos, int(2 * scale) + 1)
+                    pygame.draw.line(screen, (255, 255, 255), previous_positions[n - 1], cur_pos, int(scale*0.7))
+                    pygame.draw.aaline(screen, color, previous_positions[n - 1], cur_pos)
                 
                 if node[0] > 0:
                     color = (0, 255 * node[0] / abs(max_weight), 0)

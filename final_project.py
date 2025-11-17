@@ -25,7 +25,7 @@ template.add_layer(5)
 template.add_layer(5)
 template.add_layer(2)
 
-gen = Generation(template=template, mutation_chance=0.2, mutation_size=0.03, size=100)
+gen = Generation(template=template, mutation_chance=0.2, mutation_size=0.1, size=100)
 num_gens = 1000
 
 # network = gen.agents[0].network
@@ -39,7 +39,7 @@ def sign(n):
 
 
 def populate_players(generation: Generation):
-    return [Player(Vector(3, 250), Vector(10, 25), agent) for agent in generation.agents]
+    return [Player(Vector(3, 325), Vector(10, 25), agent) for agent in generation.agents]
 
 
 def display_info(round_num, gen_num):
@@ -82,31 +82,36 @@ def run_generation(players: list[Player], obstacles: list[GameObj], round_num, g
              break
         
         for player in players:
-            player.update(obstacles)
+            if player.is_alive:
+                player.update(obstacles)
+                if t > 500 and player.pos.x < 100:
+                    player.die()
         
         # Only draw one frame every N steps
         if t % RENDER_EVERY_N_STEPS == 0:
-            update_display(players, obstacles, round_num, gen_num) 
+            update_display(players, obstacles, round_num, gen_num)
+            # TODO: Maybe move the rendering logic out of it's own loop and into here so it doesn't have to run a second loop for the Players?
         
     for player in players:
-        player.brain.score = player.pos.x
+        player.brain.score = player.pos.x + player.pos.x / 3
 
 
 
 obstacles: list[GameObj] = [Platform(Vector(0, FIELD_SIZE[1] - 50), Vector(FIELD_SIZE[0], 50)),
                             Platform(Vector(-10, 0), Vector(11, FIELD_SIZE[1])),
                             Platform(Vector(FIELD_SIZE[0] - 1, 0), Vector(11, FIELD_SIZE[1])),
-                            Platform(Vector(200, 200), Vector(50, 300)),
-                            Platform(Vector(120, 270), Vector(50, 100))]
+                            Platform(Vector(320, 200), Vector(50, 300)),
+                            Platform(Vector(240, 270), Vector(50, 80)),
+                            Platform(Vector(0, 290), Vector(120, 10), 'kill'),
+                            Platform(Vector(340, 150), Vector(50, 10), 'kill'),
+                            Platform(Vector(140, FIELD_SIZE[1] - 51), Vector(50, 10), 'kill'),
+                            Platform(Vector(290, FIELD_SIZE[1] - 51), Vector(320-290, 10), 'kill')]
 
 players = populate_players(gen)
 
 running = True
-NUM_ROUNDS = 20
 for gen_num in range(num_gens):
-    run_generation(players, obstacles, 0, gen_num, num_time_steps=5000)
-    for player in players:
-        player.brain.score /= NUM_ROUNDS
+    run_generation(players, obstacles, 0, gen_num, num_time_steps=2000)
 
     agents = [player.brain for player in players]
     best = nlargest(1, agents, key=lambda agent: agent.score)[0]

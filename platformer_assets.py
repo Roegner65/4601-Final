@@ -77,10 +77,13 @@ class GameObj:
     
 
 MOVEMENT_THRESHOLD = 0.2
-JUMP_THRESHOLD = 0.4
+JUMP_THRESHOLD = 0.1
 G = 9.8
 FPS = 60
 MAX_RAY_DISTANCE = 500.0
+MAX_JUMP = 40
+JUMP_STRENGTH = 40
+MAX_MOVE_SPEED = 40
 class Player(GameObj):
     def __init__(self, pos: Vector, dim: Vector, brain: Agent):
         self.pos = pos
@@ -89,6 +92,7 @@ class Player(GameObj):
         self.color = (50, 200, 100)
         self.brain = brain
         self.is_on_ground = False
+        self.is_alive = True
 
     def cast_ray(self, origin: Vector, direction: Vector, obstacles):
         line_end = origin + direction * MAX_RAY_DISTANCE
@@ -150,7 +154,7 @@ class Player(GameObj):
         norm_types = np.array(type_inputs, dtype=float16)
         
         vel_x = np.clip(self.vel.x / 70, -1, 1) # max speed (70)
-        vel_y = np.clip(self.vel.y / 80, -1, 1) # max jump (80)
+        vel_y = np.clip(self.vel.y / MAX_JUMP, -1, 1)
         on_ground = 1.0 if self.is_on_ground else 0.0
         
         state_inputs = np.array([vel_x, vel_y, on_ground], dtype=float16)
@@ -158,28 +162,39 @@ class Player(GameObj):
         return np.concatenate((norm_distances, norm_types, state_inputs))
     
     def jump(self, jump_strength):
-        self.vel.y -= min(50 * jump_strength, 80)
+        self.vel.y -= min(JUMP_STRENGTH * jump_strength, MAX_JUMP)
     
+    def die(self):
+        self.is_alive = False
+        self.brain.score -= 100
+        self.color = (20, 100, 60)
+
     def update(self, obstacles: list):
         output = self.brain.predict(self.get_inputs(obstacles))
         horizontal = output[0]
         jump = output[1]
 
         if self.is_on_ground:
-            self.vel.x *= 0.95
+            self.vel.x *= 0.88
             if abs(horizontal) > MOVEMENT_THRESHOLD:
-                self.vel.x += horizontal * 20
-                self.vel.x = np.clip(self.vel.x, -70, 70)
+                self.vel.x += horizontal * 5
+                self.vel.x = np.clip(self.vel.x, -MAX_MOVE_SPEED, MAX_MOVE_SPEED)
             if jump > JUMP_THRESHOLD:
                 self.jump(jump)
         else:
-            self.vel.x *= 0.85
+            if abs(horizontal) > MOVEMENT_THRESHOLD:
+                self.vel.x += horizontal/3
+                self.vel.x = np.clip(self.vel.x, -MAX_MOVE_SPEED, MAX_MOVE_SPEED)
+            self.vel.x *= 0.98
             self.vel.y += G / FPS
 
 
         self.pos.x += self.vel.x / FPS
         for obstacle in obstacles:
             if self.get_rect().colliderect(obstacle.get_rect()):
+                if obstacle.type == 'kill':
+                    self.die()
+                    return
                 if self.vel.x > 0:
                     self.pos.x = obstacle.left() - self.dim.x
                     self.vel.x = 0
@@ -191,6 +206,9 @@ class Player(GameObj):
         self.is_on_ground = False
         for obstacle in obstacles:
             if self.get_rect().colliderect(obstacle.get_rect()):
+                if obstacle.type == 'kill':
+                    self.die()
+                    return
                 if self.vel.y > 0:
                     self.pos.y = obstacle.top() - self.dim.y
                     self.vel.y = 0
