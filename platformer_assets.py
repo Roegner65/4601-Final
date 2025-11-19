@@ -174,6 +174,20 @@ class Player(GameObj):
         horizontal = output[0]
         jump = output[1]
 
+        self.is_on_ground = False
+        for obstacle in obstacles:
+            if self.get_rect().colliderect(obstacle.get_rect()):
+                if obstacle.type == 'kill':
+                    self.die()
+                    return
+                if self.vel.y > 0:
+                    self.pos.y = obstacle.top() - self.dim.y
+                    self.vel.y = 0
+                    self.is_on_ground = True
+                elif self.vel.y < 0:
+                    self.pos.y = obstacle.bottom()
+                    self.vel.y = 0
+
         if self.is_on_ground:
             self.vel.x *= 0.88
             if abs(horizontal) > MOVEMENT_THRESHOLD:
@@ -203,19 +217,7 @@ class Player(GameObj):
                     self.vel.x = 0
 
         self.pos.y += self.vel.y / FPS
-        self.is_on_ground = False
-        for obstacle in obstacles:
-            if self.get_rect().colliderect(obstacle.get_rect()):
-                if obstacle.type == 'kill':
-                    self.die()
-                    return
-                if self.vel.y > 0:
-                    self.pos.y = obstacle.top() - self.dim.y
-                    self.vel.y = 0
-                    self.is_on_ground = True
-                elif self.vel.y < 0:
-                    self.pos.y = obstacle.bottom()
-                    self.vel.y = 0
+        
     
     
 

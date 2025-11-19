@@ -2,6 +2,7 @@ import numpy as np
 from numpy.typing import NDArray
 from numpy import float16
 from math import e
+import random
 
 import pygame
 from pygame.gfxdraw import aacircle
@@ -28,7 +29,10 @@ class NeuralNetwork:
         for layer in self.network[:len(self.network) - 1]:
             next = [1]
             for node_weights in layer:
-                next.append(max((current * node_weights).sum(), 0))
+                if random.random() < 0.3:
+                    next.append(-max((current * node_weights).sum(), 0))
+                else:
+                    next.append(max((current * node_weights).sum(), 0))
                 # next.append(sigmoid((current * node_weights).sum()))
             current = np.array(next)
         output = []
