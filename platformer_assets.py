@@ -189,15 +189,15 @@ class Player(GameObj):
                     self.vel.y = 0
 
         if self.is_on_ground:
-            self.vel.x *= 0.88
+            self.vel.x *= 0.1
             if abs(horizontal) > MOVEMENT_THRESHOLD:
-                self.vel.x += horizontal * 5
+                self.vel.x += horizontal * 7
                 self.vel.x = np.clip(self.vel.x, -MAX_MOVE_SPEED, MAX_MOVE_SPEED)
             if jump > JUMP_THRESHOLD:
                 self.jump(jump)
         else:
             if abs(horizontal) > MOVEMENT_THRESHOLD:
-                self.vel.x += horizontal/3
+                self.vel.x += horizontal
                 self.vel.x = np.clip(self.vel.x, -MAX_MOVE_SPEED, MAX_MOVE_SPEED)
             self.vel.x *= 0.98
             self.vel.y += G / FPS

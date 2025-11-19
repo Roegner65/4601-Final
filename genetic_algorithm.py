@@ -6,7 +6,7 @@ import numpy as np
 
 class Agent(NeuralNetwork):
     def __init__(self, network=None):
-        self.score = 0#float('-inf')  # Will be set later, in training
+        self.score:float = 0#float('-inf')  # Will be set later, in training
         if network != None:
             self.network = network
             self.num_inputs = len(network[0][0]) - 1
