@@ -12,19 +12,18 @@ pygame.init()
 FIELD_SIZE = (600, 400)
 SCALE = 1
 INFO_PANE_HEIGHT = 15
-RENDER_EVERY_N_STEPS = 5
-N_ROUNDS = 5
+RENDER_EVERY_N_STEPS = 7
 network_display = pygame.Surface((400, 400))
 animation_display = pygame.Surface((FIELD_SIZE[0] * SCALE, FIELD_SIZE[1] * SCALE + INFO_PANE_HEIGHT), pygame.SRCALPHA)
 screen = pygame.display.set_mode((animation_display.get_width() + network_display.get_width(),
                                   max(animation_display.get_height(), network_display.get_height())))
 
-template = NeuralNetwork(23)
-template.add_layer(17)
+template = NeuralNetwork(55)
+template.add_layer(32)
 # template.add_layer(4)
 template.add_layer(2)
 
-gen = Generation(template=template, mutation_chance=0.3, mutation_size=0.3, size=150)
+gen = Generation(template=template, mutation_chance=0.3, mutation_size=0.3, size=120)
 num_gens = 1000
 
 
@@ -129,7 +128,7 @@ l3_obstacles: list[GameObj] = [Platform(0, FIELD_SIZE[1] - 50, FIELD_SIZE[0], 50
                                Platform(-10, 0, 11, FIELD_SIZE[1]),
                                Platform(170, 0, 11, FIELD_SIZE[1]),
                                
-                               Platform(0, 260, 50, 10),
+                               Platform(0, 270, 50, 10),
                                Platform(120, 210, 50, 10),
                                Platform(0, 160, 50, 10),
                                Platform(120, 110, 50, 10),

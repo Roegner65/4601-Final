@@ -137,15 +137,18 @@ class Player(GameObj):
         for direction in directions:
             dist, obj = self.cast_ray(origin, direction, obstacles)
             
-            distance_inputs.append(dist)
+            distance_inputs.append(dist / MAX_RAY_DISTANCE)
             
             if obj is not None:
-                if obj.type == 'standard':
-                    type_inputs.append(0.0) # Normal platform
+                # Channel 1: Physical Obstacle exists?
+                # Channel 2: Is it dangerous?
+                if obj.type == 'kill':
+                    type_inputs.extend([1.0, 1.0]) # It is solid AND dangerous
                 else:
-                    type_inputs.append(1.0) # danger platform
+                    type_inputs.extend([1.0, 0.0]) # It is solid BUT NOT dangerous
             else:
-                type_inputs.append(-1.0) # Empty space
+                # No object at all
+                type_inputs.extend([0.0, 0.0])
                 
         
         norm_distances = np.array(distance_inputs, dtype=float32) / MAX_RAY_DISTANCE
