@@ -41,8 +41,8 @@ class Generation:
 
     def next_generation(self):
         best = nlargest(self.num_to_keep, self.agents, key=lambda agent: agent.score)
-        print([agent.score for agent in best])
-        print(best[0].network)
+        # print([agent.score for agent in best])
+        # print(best[0].network)
         for agent in best:
             agent.score = 0
         next_gen = []

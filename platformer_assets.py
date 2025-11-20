@@ -2,14 +2,14 @@ import pygame
 from genetic_algorithm import Generation, Agent
 import numpy as np
 from numpy.typing import NDArray
-from numpy import float16
+from numpy import float32
 import math
 
 
 class Vector:
     def __init__(self, x:float, y:float):
-        self.x: float = x
-        self.y: float = y
+        self.x: float = float(x)
+        self.y: float = float(y)
 
     def __add__(self, obj):
         return Vector(self.x + obj.x, self.y + obj.y)
@@ -83,7 +83,7 @@ FPS = 60
 MAX_RAY_DISTANCE = 500.0
 MAX_JUMP = 40
 JUMP_STRENGTH = 40
-MAX_MOVE_SPEED = 40
+MAX_MOVE_SPEED = 20
 class Player(GameObj):
     def __init__(self, pos: Vector, dim: Vector, brain: Agent):
         self.pos = pos
@@ -118,7 +118,7 @@ class Player(GameObj):
                     
         return closest_dist, closes_obs
 
-    def get_inputs(self, obstacles: list[GameObj]) -> NDArray[float16]:
+    def get_inputs(self, obstacles: list[GameObj], goal_pos: Vector) -> NDArray[float32]:
         origin = self.center()
         
         directions = [
@@ -149,15 +149,16 @@ class Player(GameObj):
                 type_inputs.append(-1.0) # Empty space
                 
         
-        norm_distances = np.array(distance_inputs, dtype=float16) / MAX_RAY_DISTANCE
+        norm_distances = np.array(distance_inputs, dtype=float32) / MAX_RAY_DISTANCE
         
-        norm_types = np.array(type_inputs, dtype=float16)
+        norm_types = np.array(type_inputs, dtype=float32)
         
         vel_x = np.clip(self.vel.x / 70, -1, 1) # max speed (70)
         vel_y = np.clip(self.vel.y / MAX_JUMP, -1, 1)
         on_ground = 1.0 if self.is_on_ground else 0.0
+        to_goal = (goal_pos - self.pos).normalize()
         
-        state_inputs = np.array([vel_x, vel_y, on_ground], dtype=float16)
+        state_inputs = np.array([vel_x, vel_y, on_ground, to_goal.x, to_goal.y], dtype=float32)
 
         return np.concatenate((norm_distances, norm_types, state_inputs))
     
@@ -169,41 +170,28 @@ class Player(GameObj):
         self.brain.score -= 100
         self.color = (20, 100, 60)
 
-    def update(self, obstacles: list):
-        output = self.brain.predict(self.get_inputs(obstacles))
+    def update(self, obstacles: list, goal_pos: Vector):
+        output = self.brain.predict(self.get_inputs(obstacles, goal_pos))
         horizontal = output[0]
         jump = output[1]
 
-        self.is_on_ground = False
-        for obstacle in obstacles:
-            if self.get_rect().colliderect(obstacle.get_rect()):
-                if obstacle.type == 'kill':
-                    self.die()
-                    return
-                if self.vel.y > 0:
-                    self.pos.y = obstacle.top() - self.dim.y
-                    self.vel.y = 0
-                    self.is_on_ground = True
-                elif self.vel.y < 0:
-                    self.pos.y = obstacle.bottom()
-                    self.vel.y = 0
-
+        # --- X AXIS ---
         if self.is_on_ground:
-            self.vel.x *= 0.1
+            self.vel.x *= 0.1 # Ground Friction
             if abs(horizontal) > MOVEMENT_THRESHOLD:
-                self.vel.x += horizontal * 7
+                self.vel.x += horizontal * 6
                 self.vel.x = np.clip(self.vel.x, -MAX_MOVE_SPEED, MAX_MOVE_SPEED)
-            if jump > JUMP_THRESHOLD:
-                self.jump(jump)
         else:
+            # Air control
             if abs(horizontal) > MOVEMENT_THRESHOLD:
                 self.vel.x += horizontal
                 self.vel.x = np.clip(self.vel.x, -MAX_MOVE_SPEED, MAX_MOVE_SPEED)
-            self.vel.x *= 0.98
-            self.vel.y += G / FPS
+            self.vel.x *= 0.98 # Air resistance
 
-
+        # Move X
         self.pos.x += self.vel.x / FPS
+
+        # Check X Collisions
         for obstacle in obstacles:
             if self.get_rect().colliderect(obstacle.get_rect()):
                 if obstacle.type == 'kill':
@@ -216,18 +204,67 @@ class Player(GameObj):
                     self.pos.x = obstacle.right()
                     self.vel.x = 0
 
+        # --- Y AXIS ---
+        self.vel.y += G / FPS
+
+        # Jump Logic (Uses is_on_ground from the PREVIOUS frame's check)
+        if self.is_on_ground and jump > JUMP_THRESHOLD:
+            self.jump(jump)
+            self.is_on_ground = False
+
+        # Move Y
         self.pos.y += self.vel.y / FPS
+
+        # Check Y Collisions
+        self.is_on_ground = False # Assume air until proven ground
+        
+        player_rect = self.get_rect()
+
+        for obstacle in obstacles:
+            if player_rect.colliderect(obstacle.get_rect()):
+                if obstacle.type == 'kill':
+                    self.die()
+                    return
+                
+                # Hit floor
+                if self.vel.y >= 0:
+                    self.pos.y = obstacle.top() - self.dim.y
+                    self.vel.y = 0
+                    self.is_on_ground = True
+                # Hit ceiling
+                elif self.vel.y < 0:
+                    self.pos.y = obstacle.bottom()
+                    self.vel.y = 0
         
     
     
 
-
 class Platform(GameObj):
     def __init__(self, pos: Vector, dim: Vector, type='standard'):
-        self.pos = pos
-        self.dim = dim
+        self.pos: Vector = pos
+        self.dim: Vector = dim
         self.type = type
         if type == 'standard':
             self.color = (255, 255, 255)
         else:
             self.color = (255, 0, 0)
+
+
+class Level:
+    def __init__(self, platforms, goal: Vector, spawn_pos: Vector, alternate_spawn=None):
+        self.platforms = platforms
+        self.goal: Vector = goal
+        self.spawn_pos: Vector = spawn_pos
+        if alternate_spawn is None:
+            self.alternate_spawn: Vector = spawn_pos
+        else:
+            self.alternate_spawn: Vector = alternate_spawn
+    
+    def get_reversed(self, screen_width):
+        reversed_platforms = [Platform(Vector(screen_width, platform.pos.y) - Vector(platform.pos.x + platform.dim.x, 0), platform.dim) for platform in self.platforms]
+        reversed_goal = Vector(screen_width, self.goal.y) - Vector(self.goal.x, 0)
+        reversed_spawn = Vector(screen_width, self.spawn_pos.y) - Vector(self.spawn_pos.x, 0)
+        reversed_alt_spawn = Vector(screen_width, self.alternate_spawn.y) - Vector(self.alternate_spawn.x, 0)
+        return Level(reversed_platforms, reversed_goal, reversed_spawn, reversed_alt_spawn)
+
+

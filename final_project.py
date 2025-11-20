@@ -12,12 +12,14 @@ pygame.init()
 FIELD_SIZE = (600, 400)
 SCALE = 1
 INFO_PANE_HEIGHT = 15
+RENDER_EVERY_N_STEPS = 5
+N_ROUNDS = 5
 network_display = pygame.Surface((400, 400))
 animation_display = pygame.Surface((FIELD_SIZE[0] * SCALE, FIELD_SIZE[1] * SCALE + INFO_PANE_HEIGHT))
 screen = pygame.display.set_mode((animation_display.get_width() + network_display.get_width(),
                                   max(animation_display.get_height(), network_display.get_height())))
 
-template = NeuralNetwork(19)
+template = NeuralNetwork(21)
 template.add_layer(6)
 template.add_layer(4)
 template.add_layer(2)
@@ -36,7 +38,7 @@ def sign(n):
 
 
 def populate_players(generation: Generation):
-    return [Player(Vector(3, 325), Vector(10, 25), agent) for agent in generation.agents]
+    return [Player(Vector(0, 0), Vector(10, 25), agent) for agent in generation.agents]
 
 
 def display_info(round_num, gen_num):
@@ -53,13 +55,14 @@ def display_platforms(platforms):
     for platform in platforms:
         platform.draw(animation_display)
     
-def update_display(players, platforms, round_num, gen_num):
+def update_display(players, platforms, goal: Vector, round_num, gen_num):
     global running
     animation_display.fill((0, 0, 0))
     
     display_players(players)
     display_platforms(platforms)
     display_info(round_num, gen_num)
+    pygame.draw.circle(animation_display, (0, 255, 0), goal.to_tuple(), 5)
 
     screen.blit(animation_display, (0, 0))
     screen.blit(network_display, (animation_display.get_width(), 0))
@@ -71,8 +74,13 @@ def update_display(players, platforms, round_num, gen_num):
 
 
 
-def run_generation(players: list[Player], obstacles: list[GameObj], round_num, gen_num, num_time_steps=10):
-    RENDER_EVERY_N_STEPS = 50 
+def run_generation(players: list[Player], level: Level, round_num, gen_num, num_time_steps=10):
+    if randint(0, 7) == 1:
+        for player in players:
+            player.pos = level.alternate_spawn
+    else:
+        for player in players:
+            player.pos = level.spawn_pos
 
     for t in range(num_time_steps):
         if not running:
@@ -82,16 +90,17 @@ def run_generation(players: list[Player], obstacles: list[GameObj], round_num, g
             if player.is_alive:
                 if t > 750 and player.pos.x < 80:
                     player.die()
-                player.update(obstacles)
+                player.update(level.platforms, level.goal)
                 
         
         # Only draw one frame every N steps
         if t % RENDER_EVERY_N_STEPS == 0:
-            update_display(players, obstacles, round_num, gen_num)
+            update_display(players, level.platforms, level.goal, round_num, gen_num)
             # TODO: Maybe move the rendering logic out of it's own loop and into here so it doesn't have to run a second loop for the Players?
         
     for player in players:
-        player.brain.score = min(player.pos.x, 130) - player.pos.y * 3
+        player.brain.score -= (level.goal - player.pos).magnitude()#min(player.pos.x, 130) - player.pos.y * 3
+    return players
 
 
 
@@ -104,6 +113,9 @@ l1_obstacles: list[GameObj] = [Platform(Vector(0, FIELD_SIZE[1] - 50), Vector(FI
                             Platform(Vector(340, 150), Vector(50, 10), 'kill'),
                             Platform(Vector(140, FIELD_SIZE[1] - 51), Vector(50, 10), 'kill'),
                             Platform(Vector(290, FIELD_SIZE[1] - 51), Vector(320-290, 10), 'kill')]
+l1_goal = Vector(500, 300)
+l1 = Level(l1_obstacles, l1_goal, Vector(3, 300))
+
 l2_obstacles: list[GameObj] = [Platform(Vector(0, FIELD_SIZE[1] - 50), Vector(FIELD_SIZE[0], 50)),
                             Platform(Vector(-10, 0), Vector(11, FIELD_SIZE[1])),
                             Platform(Vector(FIELD_SIZE[0] - 1, 0), Vector(11, FIELD_SIZE[1])),
@@ -113,20 +125,27 @@ l2_obstacles: list[GameObj] = [Platform(Vector(0, FIELD_SIZE[1] - 50), Vector(FI
                             
                             Platform(Vector(200, 290), Vector(150, 10)),
                             Platform(Vector(220, 200), Vector(100, 10)),
-                            Platform(Vector(250, 2650), Vector( 10, 25), 'kill'),
+                            Platform(Vector(250, 250), Vector(10, 25), 'kill'),
                             Platform(Vector(350, 290), Vector(50, 10), 'kill'),
-                            Platform(Vector(340, 200), Vector(10, 200), 'kill')]
+                            Platform(Vector(240, 200), Vector(10, 200), 'kill')]
+l2_goal = Vector(260, 190)
+l2 = Level(l1_obstacles, l1_goal, Vector(3, 300), alternate_spawn=Vector(500, 320))
 
-obstacles = l2_obstacles
+level = l2
 players = populate_players(gen)
 
 running = True
 for gen_num in range(num_gens):
-    if randint(0, 3) == 1:
-        obstacles = l1_obstacles
-    else:
-        obstacles = l2_obstacles
-    run_generation(players, obstacles, 0, gen_num, num_time_steps=2000)
+
+    for round_num in range(N_ROUNDS):
+        if randint(0, 3) == 1:
+            level = l1
+        else:
+            level = l2
+
+        if randint(0, 3) == 1:
+            players = run_generation(players, level.get_reversed(FIELD_SIZE[0]), round_num, gen_num, num_time_steps=2000)
+        players = run_generation(players, level, round_num, gen_num, num_time_steps=2000)
 
     agents = [player.brain for player in players]
     best = nlargest(1, agents, key=lambda agent: agent.score)[0]

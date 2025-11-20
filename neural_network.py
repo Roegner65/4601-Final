@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.typing import NDArray
-from numpy import float16
+from numpy import float32
 from math import e
 import random
 
@@ -17,20 +17,24 @@ class NeuralNetwork:
         self.prevSize = num_inputs
     
     def add_layer(self, size):
-        new_layer = np.random.rand(size, self.prevSize + 1).astype(float16) * 2 - 1
+        new_layer = np.random.rand(size, self.prevSize + 1).astype(float32) * 2 - 1
         self.network.append(new_layer)
         self.prevSize = size
 
     def num_outputs(self) -> int:
         return len(self.network[-1])
     
-    def predict(self, inputs: NDArray[float16]) -> NDArray[float16]:
+    def predict(self, inputs: NDArray[float32]) -> NDArray[float32]:
         current = np.array([1] + list(inputs))
         for layer in self.network[:len(self.network) - 1]:
-            next = [1]
+            if random.random() < 0.2:
+                next = [-1]
+            else:
+                next = [1]
             for node_weights in layer:
-                if random.random() < 0.3:
-                    next.append(-max((current * node_weights).sum(), 0))
+                if random.random() < 0.2:
+                    # next.append(random.random()* 2 - 1)
+                    next.append(1-max((current * node_weights).sum(), 0))
                 else:
                     next.append(max((current * node_weights).sum(), 0))
                 # next.append(sigmoid((current * node_weights).sum()))
@@ -39,12 +43,12 @@ class NeuralNetwork:
         for node_weights in self.network[-1]:
             output.append(sigmoid((current * node_weights).sum()))
 
-        return np.array(output).astype(float16)
+        return np.array(output).astype(float32)
 
     def rand_copy(self):
         copy = []
         for layer in self.network:
-            layerCopy = np.random.random(layer.shape).astype(float16) * 2 - 1
+            layerCopy = np.random.random(layer.shape).astype(float32) * 2 - 1
             copy.append(layerCopy)
         return copy
     
