@@ -27,10 +27,8 @@ class NeuralNetwork:
     def predict(self, inputs: NDArray[float32]) -> NDArray[float32]:
         current = np.array([1] + list(inputs))
         for layer in self.network[:len(self.network) - 1]:
-            if random.random() < 0.2:
-                next = [-1]
-            else:
-                next = [1]
+            next = [-1 if random.random() < 0.2 else 1]
+
             for node_weights in layer:
                 if random.random() < 0.2:
                     # next.append(random.random()* 2 - 1)

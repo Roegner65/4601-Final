@@ -89,10 +89,12 @@ class Player(GameObj):
         self.pos = pos
         self.dim = dim
         self.vel = Vector(0, 0)
-        self.color = (50, 200, 100)
+        self.alive_color = (50, 200, 100)
+        self.revive()
+        self.dead_color = (20, 100, 60)
         self.brain = brain
         self.is_on_ground = False
-        self.is_alive = True
+        self.min_dist_to_goal = float('inf')
 
     def cast_ray(self, origin: Vector, direction: Vector, obstacles):
         line_end = origin + direction * MAX_RAY_DISTANCE
@@ -170,6 +172,11 @@ class Player(GameObj):
         self.brain.score -= 100
         self.color = (20, 100, 60)
 
+    def revive(self):
+        self.is_alive = True
+        self.color = self.alive_color
+
+
     def update(self, obstacles: list, goal_pos: Vector):
         output = self.brain.predict(self.get_inputs(obstacles, goal_pos))
         horizontal = output[0]
@@ -235,9 +242,10 @@ class Player(GameObj):
                 elif self.vel.y < 0:
                     self.pos.y = obstacle.bottom()
                     self.vel.y = 0
-        
-    
-    
+        dist_to_goal = (goal_pos - self.pos).magnitude()
+        if dist_to_goal < self.min_dist_to_goal:
+            self.min_dist_to_goal = dist_to_goal
+
 
 class Platform(GameObj):
     def __init__(self, pos: Vector, dim: Vector, type='standard'):
@@ -251,6 +259,7 @@ class Platform(GameObj):
 
 
 class Level:
+    # TODO: make the kill zone optional and a rect
     def __init__(self, platforms, goal: Vector, spawn_pos: Vector, alternate_spawn=None):
         self.platforms = platforms
         self.goal: Vector = goal
@@ -261,10 +270,10 @@ class Level:
             self.alternate_spawn: Vector = alternate_spawn
     
     def get_reversed(self, screen_width):
-        reversed_platforms = [Platform(Vector(screen_width, platform.pos.y) - Vector(platform.pos.x + platform.dim.x, 0), platform.dim) for platform in self.platforms]
+        reversed_platforms = [Platform(Vector(screen_width, platform.pos.y) - Vector(platform.pos.x + platform.dim.x, 0), platform.dim, platform.type) for platform in self.platforms]
         reversed_goal = Vector(screen_width, self.goal.y) - Vector(self.goal.x, 0)
-        reversed_spawn = Vector(screen_width, self.spawn_pos.y) - Vector(self.spawn_pos.x, 0)
-        reversed_alt_spawn = Vector(screen_width, self.alternate_spawn.y) - Vector(self.alternate_spawn.x, 0)
+        reversed_spawn = Vector(screen_width, self.spawn_pos.y) - Vector(self.spawn_pos.x + 10, 0)
+        reversed_alt_spawn = Vector(screen_width, self.alternate_spawn.y) - Vector(self.alternate_spawn.x + 10, 0)
         return Level(reversed_platforms, reversed_goal, reversed_spawn, reversed_alt_spawn)
 
 
