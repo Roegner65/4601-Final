@@ -25,14 +25,15 @@ class NeuralNetwork:
         return len(self.network[-1])
     
     def predict(self, inputs: NDArray[float32]) -> NDArray[float32]:
-        current = np.array([1] + list(inputs))
+        current = np.array([0 if random.random() < 0.0 else 1] + list(inputs))
         for layer in self.network[:len(self.network) - 1]:
-            next = [-1 if random.random() < 0.2 else 1]
+            next = [0 if random.random() < 0.0 else 1]
 
             for node_weights in layer:
-                if random.random() < 0.2:
+                if random.random() < 0.0:
                     # next.append(random.random()* 2 - 1)
-                    next.append(1-max((current * node_weights).sum(), 0))
+                    # next.append(1-max((current * node_weights).sum(), 0))
+                    next.append(0)
                 else:
                     next.append(max((current * node_weights).sum(), 0))
                 # next.append(sigmoid((current * node_weights).sum()))

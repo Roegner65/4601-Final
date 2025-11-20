@@ -74,7 +74,6 @@ class GameObj:
         pygame.draw.rect(surface, self.color, self.get_rect())
 
 
-    
 
 MOVEMENT_THRESHOLD = 0.2
 JUMP_THRESHOLD = 0.1
@@ -123,16 +122,14 @@ class Player(GameObj):
     def get_inputs(self, obstacles: list[GameObj], goal_pos: Vector) -> NDArray[float32]:
         origin = self.center()
         
-        directions = [
-            Vector(0, -1),   # North
-            Vector(1, -1).normalize(),   # North-East
-            Vector(1, 0),    # East
-            Vector(1, 1).normalize(),    # South-East
-            Vector(0, 1),    # South
-            Vector(-1, 1).normalize(),   # South-West
-            Vector(-1, 0),   # West
-            Vector(-1, -1).normalize()   # North-West
-        ]
+        directions = []
+        num_rays = 16
+        for i in range(num_rays):
+            angle = (2 * math.pi / num_rays) * i
+            # Create vector from angle
+            x = math.cos(angle)
+            y = math.sin(angle)
+            directions.append(Vector(x, y))
         
         distance_inputs = []
         type_inputs = []
@@ -154,13 +151,25 @@ class Player(GameObj):
         norm_distances = np.array(distance_inputs, dtype=float32) / MAX_RAY_DISTANCE
         
         norm_types = np.array(type_inputs, dtype=float32)
+
+        vec_to_goal = goal_pos - origin
+        dist_to_goal = vec_to_goal.magnitude()
+        los_dist, los_obj = self.cast_ray(origin, vec_to_goal.normalize(), obstacles)
+        # If the ray hits something closer than the goal, the view is blocked
+        # Input: 1.0 if clear, -1.0 if blocked
+        if los_dist < dist_to_goal and los_obj.type != 'kill':
+             line_of_sight = -1.0 
+        else:
+             line_of_sight = 1.0
         
-        vel_x = np.clip(self.vel.x / 70, -1, 1) # max speed (70)
+        vel_x = np.clip(self.vel.x / MAX_MOVE_SPEED, -1, 1)
         vel_y = np.clip(self.vel.y / MAX_JUMP, -1, 1)
         on_ground = 1.0 if self.is_on_ground else 0.0
-        to_goal = (goal_pos - self.pos).normalize()
+        to_goal = goal_pos - self.pos
+        dist_to_goal = to_goal.magnitude() / Vector(600, 400).magnitude()
+        to_goal = to_goal.normalize()
         
-        state_inputs = np.array([vel_x, vel_y, on_ground, to_goal.x, to_goal.y], dtype=float32)
+        state_inputs = np.array([vel_x, vel_y, on_ground, to_goal.x, to_goal.y, dist_to_goal, line_of_sight], dtype=float32)
 
         return np.concatenate((norm_distances, norm_types, state_inputs))
     
@@ -248,9 +257,9 @@ class Player(GameObj):
 
 
 class Platform(GameObj):
-    def __init__(self, pos: Vector, dim: Vector, type='standard'):
-        self.pos: Vector = pos
-        self.dim: Vector = dim
+    def __init__(self, x, y, width, height, type='standard'):
+        self.pos: Vector = Vector(x, y)
+        self.dim: Vector = Vector(width, height)
         self.type = type
         if type == 'standard':
             self.color = (255, 255, 255)
@@ -271,7 +280,8 @@ class Level:
         self.kill_zone = kill_zone
     
     def get_reversed(self, screen_width):
-        reversed_platforms = [Platform(Vector(screen_width, platform.pos.y) - Vector(platform.pos.x + platform.dim.x, 0), platform.dim, platform.type) for platform in self.platforms]
+
+        reversed_platforms = [Platform(screen_width - (platform.pos.x + platform.dim.x), platform.pos.y, platform.dim.x, platform.dim.y, platform.type) for platform in self.platforms]
         reversed_goal = Vector(screen_width, self.goal.y) - Vector(self.goal.x, 0)
         reversed_spawn = Vector(screen_width, self.spawn_pos.y) - Vector(self.spawn_pos.x + 10, 0)
         reversed_alt_spawn = Vector(screen_width, self.alternate_spawn.y) - Vector(self.alternate_spawn.x + 10, 0)
