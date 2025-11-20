@@ -15,7 +15,7 @@ INFO_PANE_HEIGHT = 15
 RENDER_EVERY_N_STEPS = 5
 N_ROUNDS = 5
 network_display = pygame.Surface((400, 400))
-animation_display = pygame.Surface((FIELD_SIZE[0] * SCALE, FIELD_SIZE[1] * SCALE + INFO_PANE_HEIGHT))
+animation_display = pygame.Surface((FIELD_SIZE[0] * SCALE, FIELD_SIZE[1] * SCALE + INFO_PANE_HEIGHT), pygame.SRCALPHA)
 screen = pygame.display.set_mode((animation_display.get_width() + network_display.get_width(),
                                   max(animation_display.get_height(), network_display.get_height())))
 
@@ -46,7 +46,7 @@ def display_platforms(platforms):
     for platform in platforms:
         platform.draw(animation_display)
     
-def update_display(players, platforms, goal: Vector, round_num, gen_num):
+def update_display(players, platforms, goal: Vector, kill_zone: pygame.Rect, round_num, gen_num):
     global running
     animation_display.fill((0, 0, 0))
     
@@ -54,6 +54,10 @@ def update_display(players, platforms, goal: Vector, round_num, gen_num):
     display_platforms(platforms)
     display_info(round_num, gen_num)
     pygame.draw.circle(animation_display, (0, 255, 0), goal.to_tuple(), 5)
+
+    kill_zone_surf = pygame.Surface((kill_zone.width, kill_zone.height), pygame.SRCALPHA)
+    pygame.draw.rect(kill_zone_surf, (100, 100, 100, 100), (0, 0, kill_zone.width, kill_zone.height))
+    animation_display.blit(kill_zone_surf, (kill_zone.left, kill_zone.top))
 
     screen.blit(animation_display, (0, INFO_PANE_HEIGHT))
     screen.blit(network_display, (animation_display.get_width(), 0))
@@ -82,14 +86,14 @@ def run_generation(players: list[Player], level: Level, round_num, gen_num, num_
         
         for player in players:
             if player.is_alive:
-                if t > 750 and player.pos.x < 80:
+                if t > 750 and player.get_rect().colliderect(level.kill_zone):
                     player.die()
                 player.update(level.platforms, level.goal)
                 
         
         # Only draw one frame every N steps
         if t % RENDER_EVERY_N_STEPS == 0:
-            update_display(players, level.platforms, level.goal, round_num, gen_num)
+            update_display(players, level.platforms, level.goal, level.kill_zone, round_num, gen_num)
             # TODO: Maybe move the rendering logic out of it's own loop and into here so it doesn't have to run a second loop for the Players?
         
     for player in players:
@@ -108,7 +112,7 @@ l1_obstacles: list[GameObj] = [Platform(Vector(0, FIELD_SIZE[1] - 50), Vector(FI
                             Platform(Vector(140, FIELD_SIZE[1] - 51), Vector(50, 10), 'kill'),
                             Platform(Vector(290, FIELD_SIZE[1] - 51), Vector(320-290, 10), 'kill')]
 l1_goal = Vector(500, 300)
-l1 = Level(l1_obstacles, l1_goal, Vector(4, 325))
+l1 = Level(l1_obstacles, l1_goal, Vector(4, 325), kill_zone=pygame.Rect(0, 0, 80, 400))
 
 l2_obstacles: list[GameObj] = [Platform(Vector(0, FIELD_SIZE[1] - 50), Vector(FIELD_SIZE[0], 50)),
                             Platform(Vector(-10, 0), Vector(11, FIELD_SIZE[1])),
@@ -123,9 +127,9 @@ l2_obstacles: list[GameObj] = [Platform(Vector(0, FIELD_SIZE[1] - 50), Vector(FI
                             Platform(Vector(350, 290), Vector(50, 10), 'kill'),
                             Platform(Vector(240, 200), Vector(10, 200), 'kill')]
 l2_goal = Vector(260, 190)
-l2 = Level(l1_obstacles, l1_goal, Vector(4, 325), alternate_spawn=Vector(500, 325))
+l2 = Level(l1_obstacles, l1_goal, Vector(4, 325), alternate_spawn=Vector(500, 325), kill_zone=pygame.Rect(0, 0, 80, 400))
 
-level = l2
+levels = [l1, l2, l1.get_reversed(FIELD_SIZE[0]), l2.get_reversed(FIELD_SIZE[0]), l2.get_alt()]
 players = populate_players(gen)
 
 running = True

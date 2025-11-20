@@ -260,7 +260,7 @@ class Platform(GameObj):
 
 class Level:
     # TODO: make the kill zone optional and a rect
-    def __init__(self, platforms, goal: Vector, spawn_pos: Vector, alternate_spawn=None):
+    def __init__(self, platforms, goal: Vector, spawn_pos: Vector, alternate_spawn=None, kill_zone: pygame.Rect=pygame.Rect(0, 0, 0, 0)):
         self.platforms = platforms
         self.goal: Vector = goal
         self.spawn_pos: Vector = spawn_pos
@@ -268,12 +268,17 @@ class Level:
             self.alternate_spawn: Vector = spawn_pos
         else:
             self.alternate_spawn: Vector = alternate_spawn
+        self.kill_zone = kill_zone
     
     def get_reversed(self, screen_width):
         reversed_platforms = [Platform(Vector(screen_width, platform.pos.y) - Vector(platform.pos.x + platform.dim.x, 0), platform.dim, platform.type) for platform in self.platforms]
         reversed_goal = Vector(screen_width, self.goal.y) - Vector(self.goal.x, 0)
         reversed_spawn = Vector(screen_width, self.spawn_pos.y) - Vector(self.spawn_pos.x + 10, 0)
         reversed_alt_spawn = Vector(screen_width, self.alternate_spawn.y) - Vector(self.alternate_spawn.x + 10, 0)
-        return Level(reversed_platforms, reversed_goal, reversed_spawn, reversed_alt_spawn)
+        reversed_kill_zone = pygame.Rect(screen_width - self.kill_zone.right, self.kill_zone.top, self.kill_zone.width, self.kill_zone.height)
+        return Level(reversed_platforms, reversed_goal, reversed_spawn, reversed_alt_spawn, reversed_kill_zone)
+    
+    def get_alt(self):
+        return Level(self.platforms, self.goal, self.alternate_spawn, kill_zone=self.kill_zone)
 
 
